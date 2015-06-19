@@ -28,7 +28,7 @@ Maven
 Source Download
 ---------------
 
-    git clone https://github.com/TakahikoKawasaki/nv-zookeeper.git
+    git clone http://github.com/TakahikoKawasaki/nv-zookeeper.git
 
 
 JavaDoc
@@ -80,7 +80,7 @@ new LeaderElection()
 new LeaderElection()
     .setZooKeeper(zooKeeper)
     .setListener(listener)
-    .setPath("/leader"
+    .setPath("/leader")
     .setId(
         String.valueOf(Math.abs(new Random().nextLong()))
     )
