@@ -20,7 +20,7 @@ Maven
 <dependency>
     <groupId>com.neovisionaries</groupId>
     <artifactId>nv-zookeeper</artifactId>
-    <version>1.0</version>
+    <version>1.1</version>
 </dependency>
 ```
 
@@ -68,6 +68,11 @@ LeaderElection.Listener listener = new LeaderElection.Leader() {
     public void onFinish(LeaderElection election) {
         System.out.println("The callback chain ended. Not run for election any more.");
     }
+
+    @Override
+    public void onStateChanged(LeaderElection election, State oldState, State newState) {
+        System.out.format("The state was changed from %s to %s.\n", oldState, newState);
+    }
 };
 
 // Conduct a leader election.
@@ -93,6 +98,24 @@ a callback (and a watcher as necessary), until it detects either of the followin
 
 1. The given `ZooKeeper` instance reports `AUTH_FAILED` or `CLOSED`.
 2. This instance is marked as `shouldStop` by `finish()`.
+
+`LeaderElection.Adapter` is an empty implementation of `LeaderElection.Listener`.
+You may find it useful when you are interested in only some of the callback methods.
+For example, if you are interested in only `onStateChanged()`, using `Adapter`
+will make your code shorter like below.
+
+```java
+// Conduct a leader election.
+new LeaderElection()
+    .setZooKeeper(zooKeeper)
+    .setListener(new Adapter() {
+        @Override
+        public void onStateChanged(LeaderElection election, State oldState, State newState) {
+            System.out.format("The state was changed from %s to %s.\n", oldState, newState);
+        }
+    })
+    .start();
+```
 
 
 See Also
