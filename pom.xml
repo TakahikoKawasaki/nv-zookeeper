@@ -4,7 +4,7 @@
 
     <groupId>com.neovisionaries</groupId>
     <artifactId>nv-zookeeper</artifactId>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.1</version>
     <packaging>jar</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>
@@ -29,7 +29,7 @@
         <connection>scm:git:git@github.com:TakahikoKawasaki/nv-zookeeper.git</connection>
         <developerConnection>scm:git:git@github.com:TakahikoKawasaki/nv-zookeeper.git</developerConnection>
         <url>git@github.com:TakahikoKawasaki/nv-zookeeper.git</url>
-      <tag>HEAD</tag>
+      <tag>nv-zookeeper-1.1</tag>
     </scm>
 
     <properties>
