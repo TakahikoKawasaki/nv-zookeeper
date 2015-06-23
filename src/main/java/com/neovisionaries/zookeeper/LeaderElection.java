@@ -36,7 +36,7 @@ import org.apache.zookeeper.data.Stat;
 /**
  * An implementation of a "leader election" algorithm using ZooKeeper.
  *
- * <pre style="border: 1px solid black; padding: 0.5em;">
+ * <pre style="border: 1px solid black; padding: 0.5em; margin: 1em;">
  * <span style="color: darkgreen;">// Prepare a ZooKeeper instance.</span>
  * ZooKeeper zooKeeper = ...
  *
@@ -60,6 +60,12 @@ import org.apache.zookeeper.data.Stat;
  *     <span style="color: gray;">&#x40;Override</span>
  *     <span style="color: purple; font-weight: bold;">public void</span> {@link Listener#onFinish(LeaderElection) onFinish}(LeaderElection election) {
  *         System.out.println(<span style="color: mediumblue;">"The callback chain ended. Not run for election any more."</span>);
+ *     }
+ *
+ *     <span style="color: gray;">&#x40;Override</span>
+ *     <span style="color: purple; font-weight: bold;">public void</span> {@link Listener#onStateChanged(LeaderElection, State, State)
+ *     onStateChanged}(LeaderElection election, {@link State} oldState, {@link State} newState) {
+ *         System.out.format(<span style="color: mediumblue;">"The state was changed from %s to %s.\n"</span>, oldState, newState);
  *     }
  * };
  *
@@ -95,6 +101,28 @@ import org.apache.zookeeper.data.Stat;
  * </ol>
  * </blockquote>
  *
+ * <p>
+ * {@link Adapter} is an empty implementation of {@link Listener}. You may
+ * find it useful when you are interested in only some of the callback methods.
+ * For example, if you are interested in only {@link
+ * Listener#onStateChanged(LeaderElection, State, State) onStateChanged()},
+ * using {@code Adapter} will make your code shorter like below.
+ * </p>
+ *
+ * <pre style="border: 1px solid black; padding: 0.5em; margin: 1em;">
+ * <span style="color: darkgreen;">// Conduct a leader election.</span>
+ * <span style="color: purple; font-weight: bold;">new</span> LeaderElection()
+ *     .{@link #setZooKeeper(ZooKeeper) setZooKeeper}(zooKeeper)
+ *     .{@link #setListener(Listener) setListener}(<span style="color: purple; font-weight: bold;">new</span> LeaderElection.{@link Adapter}() {
+ *         <span style="color: gray;">&#x40;Override</span>
+ *         <span style="color: purple; font-weight: bold;">public void</span> {@link Listener#onStateChanged(LeaderElection, State, State)
+ *         onStateChanged}(LeaderElection election, {@link State} oldState, {@link State} newState) {
+ *             System.out.format(<span style="color: mediumblue;">"The state was changed from %s to %s.\n"</span>, oldState, newState);
+ *         }
+ *     })
+ *     .{@link #start()};
+ * </pre>
+ *
  * @author Takahiko Kawasaki
  */
 public class LeaderElection
@@ -106,6 +134,8 @@ public class LeaderElection
     {
         /**
          * Called when this candidate won a leader election.
+         * This callback method is called after {@link
+         * #onStateChanged(LeaderElection, State, State) onStateChanged()}.
          *
          * @param election
          *         The {@link LeaderElection} instance which this
@@ -115,6 +145,8 @@ public class LeaderElection
 
         /**
          * Called when it is detected that another candidate is the leader.
+         * This callback method is called after {@link
+         * #onStateChanged(LeaderElection, State, State) onStateChanged()}.
          *
          * @param election
          *         The {@link LeaderElection} instance which this
@@ -124,6 +156,8 @@ public class LeaderElection
 
         /**
          * Called when it is detected that a leader does not exist.
+         * This callback method is called after {@link
+         * #onStateChanged(LeaderElection, State, State) onStateChanged()}.
          *
          * @param election
          *         The {@link LeaderElection} instance which this
@@ -133,13 +167,182 @@ public class LeaderElection
 
         /**
          * Called when it is detected that callback should not be called
-         * any more. Note that this method may not be called so soon.
+         * any more. Note that this method may not be called so soon and
+         * may not be called at all. This callback method is called, if
+         * called, after {@link #onStateChanged(LeaderElection, State, State)
+         * onStateChanged()}.
          *
          * @param election
          *         The {@link LeaderElection} instance which this
          *         listener is associated with.
          */
         void onFinish(LeaderElection election);
+
+        /**
+         * Called when the state of the leader election changed.
+         * This callback method is called before other
+         * <code>on<i>Xxx</i></code> methods
+         * ({@link #onWin(LeaderElection) onWin()},
+         * {@link #onLose(LeaderElection) onLose()}, {@link
+         * #onVacant(LeaderElection) onVacant()} and {@link
+         * #onFinish(LeaderElection) onFinish()}).
+         *
+         * @param election
+         *         The {@link LeaderElection} instance which this
+         *         listener is associated with.
+         *
+         * @param oldState
+         *         The previous state before the change.
+         *
+         * @param newState
+         *         The new state after the change.
+         *
+         * @since 1.1
+         */
+        void onStateChanged(LeaderElection election, State oldState, State newState);
+    }
+
+
+    /**
+     * An empty implementation of {@link Listener}.
+     *
+     * @since 1.1
+     */
+    public static class Adapter implements Listener
+    {
+        @Override
+        public void onWin(LeaderElection election)
+        {
+        }
+
+        @Override
+        public void onLose(LeaderElection election)
+        {
+        }
+
+        @Override
+        public void onVacant(LeaderElection election)
+        {
+        }
+
+        @Override
+        public void onFinish(LeaderElection election)
+        {
+        }
+
+        @Override
+        public void onStateChanged(LeaderElection election, State oldState, State newState)
+        {
+        }
+    }
+
+
+    /**
+     * Leader election state.
+     *
+     * <pre style="margin: 1em;">
+     *           State Transition
+     *
+     *                     +----------------+
+     *                     |  +----------+  |
+     *                     |  |  LEADER  |  |
+     *                     |  +----------+  |
+     *                     |        A       |
+     *                     |        |       |
+     *                     |        V       |
+     * +---------+         |  +----------+  |
+     * | CREATED |----------->| ELECTING |  |
+     * +---------+         |  +----------+  |
+     *      |              |        A       |
+     *      |              |        |       |
+     *      V              |        V       |
+     * +---------+         |  +----------+  |
+     * |  DONE   |<--------|  | FOLLOWER |  |
+     * +---------+         |  +----------+  |
+     *                     +----------------+
+     * </pre>
+     *
+     * <p>
+     * The initial state of {@link LeaderElection} is {@link #CREATED}.
+     * </p>
+     *
+     * <p>
+     * {@link LeaderElection#start()} method can be called only when the state
+     * is {@code CREATED}. When {@code start()} method is called when the state
+     * is not {@code CREATED}, an {@code IllegalStateException} is thrown.
+     * </p>
+     *
+     * <p>
+     * In the implementation of {@code start()} method, the state is changed
+     * to {@link #ELECTING} before the method returns. This means that
+     * {@link Listener#onStateChanged(LeaderElection, State, State)
+     * Listener.onStateChanged()} is called before {@code start()} method is
+     * returned. In some unusual cases, however, the state is changed to
+     * {@link #DONE}. This happens when the given {@link ZooKeeper} instance
+     * reports {@link org.apache.zookeeper.ZooKeeper.States#AUTH_FAILED
+     * AUTH_FAILED} or {@link org.apache.zookeeper.ZooKeeper.States#CLOSED
+     * CLOSED}, or when you have called {@link LeaderElection#finish()} before
+     * calling {@code start()} method.
+     * </p>
+     *
+     * <p>
+     * As a result of leader election, the state is changed to either {@link
+     * #LEADER} or {@link #FOLLOWER}. The state {@code LEADER} means that
+     * the {@code LeaderElection} instance has won the leader election and
+     * now is the leader. The state {@code FOLLOWER} means that the {@code
+     * LeaderElection} instance has lost the leader election and now is a
+     * follower.
+     * </p>
+     *
+     * <p>
+     * The state may be changed back to {@code ELECTING} from {@code LEADER}
+     * or {@code FOLLOWER}. This happens when it is detected that the znode
+     * for leader election has been deleted. In this case, another new
+     * leader election will be executed without delay, and as a result, the
+     * state will be changed to either {@code LEADER} or {@code FOLLOWER}
+     * again.
+     * </p>
+     *
+     * <p>
+     * The implementation of {@code LeaderElection} triggers a ZooKeeper
+     * <a href="http://zookeeper.apache.org/doc/current/api/org/apache/zookeeper/AsyncCallback.html"
+     * >callback</a> as necessary. At the timing, the state of the given
+     * {@link ZooKeeper} instance is checked by calling {@link
+     * ZooKeeper#getState()} method. If the ZooKeeper's state is either
+     * {@code AUTH_FAILED} or {@code CLOSED}, a ZooKeeper callback is not
+     * triggered, and instead, the state of {@code LeaderElection} is
+     * changed to {@code DONE}.
+     * </p>
+     *
+     * @since 1.1
+     */
+    public enum State
+    {
+        /**
+         * The initial state of a {@link LeaderElection} instance.
+         */
+        CREATED,
+
+        /**
+         * The {@link LeaderElection} instance is now the leader.
+         */
+        LEADER,
+
+        /**
+         * The {@link LeaderElection} instance is now a follower.
+         */
+        FOLLOWER,
+
+        /**
+         * Leader election is now being conducted.
+         */
+        ELECTING,
+
+        /**
+         * The {@link LeaderElection} instance has stopped working
+         * and will not join leader election any further.
+         */
+        DONE
     }
 
 
@@ -158,6 +361,7 @@ public class LeaderElection
     private StatCallback mTrackLeaderCallback = new TrackLeaderCallback();
     private Listener mListener;
     private boolean mShouldFinish;
+    private State mState = State.CREATED;
 
 
     public LeaderElection()
@@ -356,13 +560,35 @@ public class LeaderElection
      * </ol>
      * </blockquote>
      *
+     * @return
+     *         {@code this} object.
+     *
      * @throws IllegalStateException
-     *         No {@code ZooKeeper} instance is set.
+     *         <ul>
+     *           <li>No {@link ZooKeeper} instance is set.
+     *           <li>The current state is not {@link State#CREATED CREATED}.
+     *         </ul>
      */
-    public void start()
+    public LeaderElection start()
     {
         setup();
-        runForLeader();
+
+        synchronized (this)
+        {
+            if (mState != State.CREATED)
+            {
+                throw new IllegalStateException(
+                    "start() can be called only when the state is CREATED. " +
+                    "The current state is " + mState + ".");
+            }
+
+            if (runForLeader())
+            {
+                changeState(State.ELECTING);
+            }
+        }
+
+        return this;
     }
 
 
@@ -376,12 +602,34 @@ public class LeaderElection
      * {@link Watcher} which is watching the znode for leader
      * election.
      * </p>
+     *
+     * @return
+     *         {@code this} object.
      */
-    public void finish()
+    public LeaderElection finish()
     {
         synchronized (this)
         {
             mShouldFinish = true;
+        }
+
+        return this;
+    }
+
+
+    /**
+     * Get the current {@link State state}.
+     *
+     * @return
+     *         The current state.
+     *
+     * @since 1.1
+     */
+    public State getState()
+    {
+        synchronized (this)
+        {
+            return mState;
         }
     }
 
@@ -449,6 +697,7 @@ public class LeaderElection
 
         if (shouldFinish)
         {
+            changeState(State.DONE);
             callOnFinish();
         }
 
@@ -456,16 +705,36 @@ public class LeaderElection
     }
 
 
-    private void runForLeader()
+    private void changeState(State state)
+    {
+        State oldState;
+        State newState;
+
+        synchronized (this)
+        {
+            oldState = mState;
+            newState = state;
+
+            mState = state;
+
+            callOnStateChanged(oldState, newState);
+        }
+    }
+
+
+    private boolean runForLeader()
     {
         if (finishIfAppropriate())
         {
-            // Stop the callback chain.
-            return;
+            // Return without calling ZooKeeper.create().
+            // This means that the callback chain is terminated here.
+            return false;
         }
 
         mZooKeeper.create(mPath, mIdBytes, mAclList,
             CreateMode.EPHEMERAL, mRunForLeaderCallback, null);
+
+        return true;
     }
 
 
@@ -502,12 +771,14 @@ public class LeaderElection
             {
                 case OK:
                     // I'm the leader. Track myself.
+                    changeState(State.LEADER);
                     callOnWin();
                     trackLeader();
                     return;
 
                 case NODEEXISTS:
-                    // I'm not the leader. Track the leader.
+                    // I'm not the leader but a follower. Track the leader.
+                    changeState(State.FOLLOWER);
                     callOnLose();
                     trackLeader();
                     return;
@@ -535,6 +806,7 @@ public class LeaderElection
 
                 case NONODE:
                     // Nobody is the leader. Run for the leader.
+                    changeState(State.ELECTING);
                     callOnVacant();
                     runForLeader();
                     return;
@@ -556,11 +828,13 @@ public class LeaderElection
             if (mId.equals(id))
             {
                 // I'm the leader.
+                changeState(State.LEADER);
                 callOnWin();
             }
             else
             {
-                // I'm not the leader.
+                // I'm not the leader but a follower.
+                changeState(State.FOLLOWER);
                 callOnLose();
             }
 
@@ -578,6 +852,7 @@ public class LeaderElection
             if (event.getType() == EventType.NodeDeleted)
             {
                 // The leader resigned.
+                changeState(State.ELECTING);
                 callOnVacant();
 
                 // Run for the leader.
@@ -599,6 +874,7 @@ public class LeaderElection
 
                 case NONODE:
                     // Nobody is the leader. Run for the leader.
+                    changeState(State.ELECTING);
                     callOnVacant();
                     runForLeader();
                     return;
@@ -676,6 +952,24 @@ public class LeaderElection
         try
         {
             mListener.onFinish(this);
+        }
+        catch (RuntimeException e)
+        {
+            // Ignore.
+        }
+    }
+
+
+    private void callOnStateChanged(State oldState, State newState)
+    {
+        if (mListener == null)
+        {
+            return;
+        }
+
+        try
+        {
+            mListener.onStateChanged(this, oldState, newState);
         }
         catch (RuntimeException e)
         {
