@@ -97,7 +97,7 @@ import org.apache.zookeeper.data.Stat;
  * <li>The given {@link ZooKeeper} instance reports {@link
  * ZooKeeper.States#AUTH_FAILED AUTH_FAILED} or {@link
  * ZooKeeper.States#CLOSED CLOSED}.
- * <li>This instance is marked as 'shouldStop' by {@link #finish()}.
+ * <li>This instance is marked as 'shouldFinish' by {@link #finish()}.
  * </ol>
  * </blockquote>
  *
@@ -396,7 +396,7 @@ public class LeaderElection
      * </p>
      *
      * @param zooKeeper
-     *         The {@link ZooKeeper} instance used for leader election.
+     *         A {@link ZooKeeper} instance used for leader election.
      *
      * @return
      *         {@code this} object.
@@ -440,6 +440,20 @@ public class LeaderElection
         mPath = path;
 
         return this;
+    }
+
+
+    /**
+     * Get the default path ({@code "/leader"}).
+     *
+     * @return
+     *         The default path.
+     *
+     * @since 1.2
+     */
+    public String getDefaultPath()
+    {
+        return DEFAULT_PATH;
     }
 
 
@@ -510,6 +524,20 @@ public class LeaderElection
         mAclList = list;
 
         return this;
+    }
+
+
+    /**
+     * Get the default ACL list ({@link ZooDefs.Ids.OPEN_ACL_UNSAFE OPEN_ACL_UNSAFE}).
+     *
+     * @return
+     *         The default ACL list.
+     *
+     * @since 1.2
+     */
+    public List<ACL> getDefaultAclList()
+    {
+        return DEFAULT_ACL_LIST;
     }
 
 
@@ -631,6 +659,36 @@ public class LeaderElection
         {
             return mState;
         }
+    }
+
+
+    /**
+     * Create a {@link NodeReader} instance to read the content
+     * of the znode that is used for leader election. This method
+     * behaves almost the same way as the following code.
+     *
+     * <pre style="margin: 1em;">
+     * return new {@link NodeReader#NodeReader() NodeReader()}
+     *     .{@link NodeReader#setZooKeeper(ZooKeeper) setZooKeeper}(getZooKeeper())
+     *     .{@link NodeReader#setPath(String) setPath}((getPath() != null) ? getPath() : getDefaultPath());
+     * </pre>
+     *
+     * <p>
+     * Note that no {@link NodeReader.Listener listener} is set
+     * to the returned {@code NodeReader} instance.
+     * </p>
+     *
+     * @return
+     *         A {@link NodeReader} instance to read the content
+     *         of the znode that is used for leader election.
+     *
+     * @since 1.2
+     */
+    public NodeReader createReader()
+    {
+        return new NodeReader()
+            .setZooKeeper(mZooKeeper)
+            .setPath((mPath != null) ? mPath : DEFAULT_PATH);
     }
 
 
