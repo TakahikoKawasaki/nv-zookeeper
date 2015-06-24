@@ -20,7 +20,7 @@ Maven
 <dependency>
     <groupId>com.neovisionaries</groupId>
     <artifactId>nv-zookeeper</artifactId>
-    <version>1.1</version>
+    <version>1.2</version>
 </dependency>
 ```
 
@@ -123,12 +123,6 @@ See Also
 
 * [Apache ZooKeeper](http://zookeeper.apache.org/)
 * [Apache ZooKeeper JavaDoc](http://zookeeper.apache.org/doc/current/api/index.html)
-
-
-Note
-----
-
-Not tested enough.
 
 
 Author

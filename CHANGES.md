@@ -1,6 +1,14 @@
 CHANGES
 =======
 
+### 1.2 (2015-06-24)
+
+* Added NodeReader class.
+
+* Added createReader(), getDefaultPath() and getDefaultAclList()
+  methods to LeaderElection class.
+
+
 ### 1.1 (2015-06-23)
 
 * Added LeaderElection.Adapter class.
